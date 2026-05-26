@@ -23,6 +23,7 @@ class FakeImapClient implements RoundcubeImapSyncClient
         $this->folders[$folder] = $messages;
     }
 
+    #[\Override]
     public function connect(string $host, int $port, string $user, string $password, array $options): void
     {
         if ($this->connectShouldFail) {
@@ -30,20 +31,24 @@ class FakeImapClient implements RoundcubeImapSyncClient
         }
     }
 
+    #[\Override]
     public function close(): void
     {
     }
 
+    #[\Override]
     public function listFolders(): array
     {
         return array_keys($this->folders);
     }
 
+    #[\Override]
     public function getHierarchyDelimiter(): string
     {
         return $this->delimiter;
     }
 
+    #[\Override]
     public function createFolder(string $folder): bool
     {
         if (isset($this->createFolderFailures[$folder])) {
@@ -59,6 +64,7 @@ class FakeImapClient implements RoundcubeImapSyncClient
         return false;
     }
 
+    #[\Override]
     public function selectFolder(string $folder): int
     {
         if (!isset($this->folders[$folder])) {
@@ -68,6 +74,7 @@ class FakeImapClient implements RoundcubeImapSyncClient
         return count($this->folders[$folder]);
     }
 
+    #[\Override]
     public function getFolderSize(string $folder): int
     {
         if ($this->getFolderSizeShouldFail) {
@@ -90,16 +97,19 @@ class FakeImapClient implements RoundcubeImapSyncClient
         return $total;
     }
 
+    #[\Override]
     public function getQuota(string $folder): ?array
     {
         return $this->quotaResult;
     }
 
+    #[\Override]
     public function supportsStatusSize(): bool
     {
         return $this->statusSizeSupported;
     }
 
+    #[\Override]
     public function fetchMessageIdentities(string $folder): array
     {
         if (!isset($this->folders[$folder])) {
@@ -114,6 +124,7 @@ class FakeImapClient implements RoundcubeImapSyncClient
         return $identities;
     }
 
+    #[\Override]
     public function fetchMessageRaw(string $folder, int $uid): ?array
     {
         if (!isset($this->folders[$folder][$uid])) {
@@ -127,6 +138,7 @@ class FakeImapClient implements RoundcubeImapSyncClient
         ];
     }
 
+    #[\Override]
     public function appendMessage(string $folder, string $rawMessage, array $flags, ?string $internalDate): bool
     {
         if (isset($this->appendQuotaFailures[$folder])) {
@@ -158,7 +170,10 @@ class FakeImapClient implements RoundcubeImapSyncClient
             return 1;
         }
 
-        return max(array_keys($this->folders[$folder])) + 1;
+        /** @var non-empty-array<int, mixed> $messages */
+        $messages = $this->folders[$folder];
+
+        return max(array_keys($messages)) + 1;
     }
 
     private function identityFromRaw(string $rawMessage): array
