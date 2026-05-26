@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0">
+<files psalm-version="6.16.1@f1f5de594dc76faf8784e02d3dc4716c91c6f6ac">
   <file src="imapsync.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function init(): void]]></code>
+    </MissingOverrideAttribute>
     <NullArgument>
       <code><![CDATA[null]]></code>
     </NullArgument>
@@ -12,6 +15,20 @@
     <InvalidReturnType>
       <code><![CDATA[bool]]></code>
     </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function appendMessage(string $folder, string $rawMessage, array $flags, ?string $internalDate): bool]]></code>
+      <code><![CDATA[public function close(): void]]></code>
+      <code><![CDATA[public function connect(string $host, int $port, string $user, string $password, array $options): void]]></code>
+      <code><![CDATA[public function createFolder(string $folder): bool]]></code>
+      <code><![CDATA[public function fetchMessageIdentities(string $folder): array]]></code>
+      <code><![CDATA[public function fetchMessageRaw(string $folder, int $uid): ?array]]></code>
+      <code><![CDATA[public function getFolderSize(string $folder): int]]></code>
+      <code><![CDATA[public function getHierarchyDelimiter(): string]]></code>
+      <code><![CDATA[public function getQuota(string $folder): ?array]]></code>
+      <code><![CDATA[public function listFolders(): array]]></code>
+      <code><![CDATA[public function selectFolder(string $folder): int]]></code>
+      <code><![CDATA[public function supportsStatusSize(): bool]]></code>
+    </MissingOverrideAttribute>
   </file>
   <file src="tests/Fakes/FakeImapClient.php">
     <InvalidReturnStatement>
@@ -20,5 +37,31 @@
     <InvalidReturnType>
       <code><![CDATA[int]]></code>
     </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function appendMessage(string $folder, string $rawMessage, array $flags, ?string $internalDate): bool]]></code>
+      <code><![CDATA[public function close(): void]]></code>
+      <code><![CDATA[public function connect(string $host, int $port, string $user, string $password, array $options): void]]></code>
+      <code><![CDATA[public function createFolder(string $folder): bool]]></code>
+      <code><![CDATA[public function fetchMessageIdentities(string $folder): array]]></code>
+      <code><![CDATA[public function fetchMessageRaw(string $folder, int $uid): ?array]]></code>
+      <code><![CDATA[public function getFolderSize(string $folder): int]]></code>
+      <code><![CDATA[public function getHierarchyDelimiter(): string]]></code>
+      <code><![CDATA[public function getQuota(string $folder): ?array]]></code>
+      <code><![CDATA[public function listFolders(): array]]></code>
+      <code><![CDATA[public function selectFolder(string $folder): int]]></code>
+      <code><![CDATA[public function supportsStatusSize(): bool]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="tests/Integration/PreflightAndQuotaIntegrationTest.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function setUpBeforeClass(): void]]></code>
+      <code><![CDATA[public static function tearDownAfterClass(): void]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="tests/Integration/SyncEngineIntegrationTest.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function setUpBeforeClass(): void]]></code>
+      <code><![CDATA[public static function tearDownAfterClass(): void]]></code>
+    </MissingOverrideAttribute>
   </file>
 </files>
