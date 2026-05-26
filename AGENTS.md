@@ -57,8 +57,7 @@ future worker mode — must use an out-of-session store (file, DB, Roundcube cac
 ├── LICENSE                                   # MIT
 ├── README.md                                 # user-facing documentation
 ├── composer.json                             # plugin manifest (Roundcube plugin-installer type)
-├── psalm.xml                                 # Psalm static-analysis configuration
-├── psalm-baseline.xml                        # current Psalm baseline for brownfield issues
+├── psalm.xml                                 # Psalm static-analysis configuration (no baseline — every error must be fixed)
 ├── imapsync.php                              # plugin entry class (extends rcube_plugin)
 ├── imapsync.js                               # client-side: form handling, result rendering
 ├── config.inc.php.dist                       # default plugin config, copied by user to config.inc.php
