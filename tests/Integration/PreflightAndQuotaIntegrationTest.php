@@ -96,6 +96,29 @@ final class PreflightAndQuotaIntegrationTest extends TestCase
         }
     }
 
+    public function testOverquotaIsDetectedWithCustomEnhancedStatusMessage(): void
+    {
+        // Some Dovecot installations (e.g. Mittwald's default) replace the
+        // standard [OVERQUOTA] response code with a custom human message
+        // keyed on RFC 3463 enhanced status code 5.2.2. This test exercises
+        // that variant against real Dovecot to guard against the detection
+        // silently falling back to "per-message error".
+        $customMessageContainer = (new DovecotContainer())
+            ->withQuotaKilobytes(self::QUOTA_KILOBYTES)
+            ->withQuotaExceededMessage('552 5.2.2 No space left in mailbox / Der Speicherplatz des Postfachs ist vollstaendig belegt')
+            ->start();
+
+        try {
+            $result = self::runSync($customMessageContainer);
+
+            self::assertTrue($result->quotaExceeded, 'Expected quotaExceeded flag to be set under custom 5.2.2 message.');
+            self::assertNotNull($result->fatalError);
+            self::assertLessThan(self::SOURCE_MESSAGE_COUNT, $result->messagesCopied);
+        } finally {
+            $customMessageContainer->stop();
+        }
+    }
+
     private static function seedSourceContainer(): void
     {
         $sourceImap = self::connectToContainer(self::requireSourceContainer());
@@ -119,10 +142,10 @@ final class PreflightAndQuotaIntegrationTest extends TestCase
         }
     }
 
-    private static function runSync(): RoundcubeImapSyncResult
+    private static function runSync(?DovecotContainer $destinationContainer = null): RoundcubeImapSyncResult
     {
         $sourceContainer = self::requireSourceContainer();
-        $destinationContainer = self::requireDestinationContainer();
+        $destinationContainer ??= self::requireDestinationContainer();
         $sourceClient = new RoundcubeImapSyncGenericClient(new rcube_imap_generic());
         $destinationClient = new RoundcubeImapSyncGenericClient(new rcube_imap_generic());
         $destinationClient->connect(

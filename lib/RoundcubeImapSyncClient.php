@@ -185,11 +185,8 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         $result = $this->imap->append($folder, $message, $flags, $internalDate, false);
         if (!$result && $this->imap->error) {
             $errorMessage = $this->getErrorMessage("Could not append message to {$folder}.");
-            // rcube_imap_generic extracts IMAP response codes (RFC 5530) like
-            // [OVERQUOTA] into a separate `resultcode` property and strips them
-            // from the error string, so we check the structured field — not the
-            // human-readable error text.
-            if ($this->isQuotaResponseCode()) {
+            $resultCode = is_string($this->imap->resultcode ?? null) ? $this->imap->resultcode : null;
+            if (self::isQuotaErrorResponse($resultCode, $this->imap->error)) {
                 throw new RoundcubeImapSyncQuotaExceededException($errorMessage);
             }
 
@@ -199,11 +196,45 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return $result;
     }
 
-    private function isQuotaResponseCode(): bool
+    /**
+     * Decide whether an IMAP NO/BAD response signals "destination mailbox is over quota".
+     *
+     * Three signals, any one of which is sufficient:
+     *
+     * 1. RFC 5530 / RFC 9208 IMAP response code OVERQUOTA — what stock Dovecot
+     *    >= 2.2.30 returns. rcube_imap_generic extracts response codes into
+     *    `resultcode` and removes them from the human error text, which is
+     *    why we cannot just substring-match the error.
+     * 2. RFC 3463 enhanced status code "5.2.2" ("Mailbox full") in the error
+     *    text. Operators with a custom `quota_exceeded_message` (e.g. the
+     *    Mittwald default) replace the standard response code with a sentence
+     *    keyed on 5.2.2 — we want to catch those too. Bounded with whitespace
+     *    so we don't false-positive on IP addresses or unrelated dotted-number
+     *    fragments.
+     * 3. Substring match on "OVERQUOTA" in the error text — defensive catch
+     *    for setups where the tag survives into the human message but somehow
+     *    not as a response code.
+     */
+    public static function isQuotaErrorResponse(?string $resultCode, ?string $errorText): bool
     {
-        $resultCode = $this->imap->resultcode ?? null;
+        if ($resultCode !== null && strcasecmp($resultCode, 'OVERQUOTA') === 0) {
+            return true;
+        }
 
-        return is_string($resultCode) && strcasecmp($resultCode, 'OVERQUOTA') === 0;
+        $error = (string) $errorText;
+        if ($error === '') {
+            return false;
+        }
+
+        if (preg_match('/(?:^|\s)5\.2\.2(?:\s|$)/', $error) === 1) {
+            return true;
+        }
+
+        if (stripos($error, 'OVERQUOTA') !== false) {
+            return true;
+        }
+
+        return false;
     }
 
     private function normalizeMessageId(?string $messageId): ?string
