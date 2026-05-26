@@ -53,9 +53,16 @@ final class PreflightAndQuotaIntegrationTest extends TestCase
     {
         $result = self::runSync();
 
+        // The structural assertion is what we care about: the engine
+        // identified the failure as an over-quota response (via
+        // rcube_imap_generic's resultcode, RFC 5530) and stopped the sync
+        // before walking every source message. We deliberately do NOT
+        // assert on $result->fatalError's wording — rcube_imap_generic
+        // strips the [OVERQUOTA] tag from the error string, and Dovecot's
+        // human-readable text is just "Quota exceeded (mailbox for user
+        // is full)" with no further token we could pin on.
         self::assertTrue($result->quotaExceeded, 'Expected quotaExceeded flag to be set.');
         self::assertNotNull($result->fatalError);
-        self::assertStringContainsStringIgnoringCase('OVERQUOTA', (string) $result->fatalError);
         self::assertLessThan(self::SOURCE_MESSAGE_COUNT, $result->messagesCopied);
     }
 

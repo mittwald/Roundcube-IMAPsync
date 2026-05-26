@@ -185,7 +185,11 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         $result = $this->imap->append($folder, $message, $flags, $internalDate, false);
         if (!$result && $this->imap->error) {
             $errorMessage = $this->getErrorMessage("Could not append message to {$folder}.");
-            if (stripos($errorMessage, '[OVERQUOTA]') !== false) {
+            // rcube_imap_generic extracts IMAP response codes (RFC 5530) like
+            // [OVERQUOTA] into a separate `resultcode` property and strips them
+            // from the error string, so we check the structured field — not the
+            // human-readable error text.
+            if ($this->isQuotaResponseCode()) {
                 throw new RoundcubeImapSyncQuotaExceededException($errorMessage);
             }
 
@@ -193,6 +197,13 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         }
 
         return $result;
+    }
+
+    private function isQuotaResponseCode(): bool
+    {
+        $resultCode = $this->imap->resultcode ?? null;
+
+        return is_string($resultCode) && strcasecmp($resultCode, 'OVERQUOTA') === 0;
     }
 
     private function normalizeMessageId(?string $messageId): ?string

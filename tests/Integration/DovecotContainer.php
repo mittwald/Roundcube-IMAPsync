@@ -147,6 +147,11 @@ DOVECOT;
         }
 
         if ($this->quotaKilobytes !== null) {
+            // Enable the quota plugin and set a storage limit, then let
+            // Dovecot's defaults handle the IMAP response. Since Dovecot
+            // 2.2.30, an APPEND that exceeds quota carries an [OVERQUOTA]
+            // response code (RFC 9208) automatically — we want to test
+            // against that real-world wording, not against a forced one.
             $quotaConfig = strtr(
                 <<<'DOVECOT'
 mail_plugins {
@@ -165,13 +170,9 @@ namespace inbox {
 }
 
 quota_storage_size = %KB%K
-quota_exceeded_message = "Mailbox [OVERQUOTA] over quota"
 
 quota "User quota" {
 }
-
-quota_status_success = OK
-quota_status_overquota = "[OVERQUOTA] Mailbox over quota"
 DOVECOT,
                 ['%KB%' => (string) $this->quotaKilobytes],
             );
