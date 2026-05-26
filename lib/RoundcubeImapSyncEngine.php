@@ -8,6 +8,7 @@
 class RoundcubeImapSyncEngine
 {
     private const PROGRESS_BATCH_SIZE = 10;
+    private const PREFLIGHT_SAFETY_MARGIN = 1.15;
 
     public function __construct(
         private RoundcubeImapSyncClient $source,
@@ -42,12 +43,77 @@ class RoundcubeImapSyncEngine
 
                 $this->syncFolder($sourceFolder, $destinationFolder, $progress, $result);
             }
+        } catch (RoundcubeImapSyncQuotaExceededException $quotaException) {
+            $result->fatalError = $quotaException->getMessage();
+            $result->quotaExceeded = true;
         } catch (RoundcubeImapSyncException $syncException) {
             $result->fatalError = $syncException->getMessage();
         } finally {
             $result->finishedAt = microtime(true);
             $this->source->close();
         }
+
+        return $result;
+    }
+
+    public function preflight(RoundcubeImapSyncJob $job): RoundcubeImapSyncPreflightResult
+    {
+        $result = new RoundcubeImapSyncPreflightResult();
+
+        try {
+            $this->source->connect(
+                $job->getHost(),
+                $job->getPort(),
+                $job->getSourceUser(),
+                $job->getSourcePassword(),
+                $this->buildConnectionOptions($job),
+            );
+            $result->connectionOk = true;
+        } catch (RoundcubeImapSyncException $connectException) {
+            $result->connectionError = $connectException->getMessage();
+
+            return $result;
+        }
+
+        try {
+            $folders = $this->filterFolders($this->source->listFolders(), $job->getSkipFolders());
+            $result->folderCount = count($folders);
+            $result->foldersOk = true;
+        } catch (RoundcubeImapSyncException $folderException) {
+            $result->folderError = $folderException->getMessage();
+            $this->source->close();
+
+            return $result;
+        }
+
+        $sourceBytes = 0;
+        foreach ($folders as $folder) {
+            try {
+                $sourceBytes += $this->source->getFolderSize($folder);
+            } catch (RoundcubeImapSyncException $sizeException) {
+                // Per-folder size failures make the estimate approximate, not invalid.
+            }
+        }
+        $result->sourceBytes = $sourceBytes;
+
+        try {
+            $quota = $this->destination->getQuota('INBOX');
+            if (is_array($quota)) {
+                $result->quotaChecked = true;
+                $result->destinationUsed = (int) $quota['used'];
+                $result->destinationLimit = (int) $quota['total'];
+                $free = $result->destinationLimit - $result->destinationUsed;
+                $result->quotaFits = ($sourceBytes * self::PREFLIGHT_SAFETY_MARGIN) <= $free;
+            }
+        } catch (RoundcubeImapSyncException $quotaException) {
+            // Treat quota failures as unknown because runtime append still enforces quota.
+        }
+
+        $this->source->close();
+
+        $result->readyToStart = $result->foldersOk
+            && $result->folderCount > 0
+            && (!$result->quotaChecked || $result->quotaFits);
 
         return $result;
     }
@@ -105,6 +171,8 @@ class RoundcubeImapSyncEngine
                 if ($dedupKey !== null) {
                     $destinationKeys[$dedupKey] = true;
                 }
+            } catch (RoundcubeImapSyncQuotaExceededException $quotaException) {
+                throw $quotaException;
             } catch (RoundcubeImapSyncException $messageException) {
                 $result->errors[] = "Message {$uid} in {$sourceFolder}: {$messageException->getMessage()}";
             }

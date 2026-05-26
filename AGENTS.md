@@ -62,9 +62,10 @@ future worker mode — must use an out-of-session store (file, DB, Roundcube cac
 ├── config.inc.php.dist                       # default plugin config, copied by user to config.inc.php
 ├── lib/
 │   ├── RoundcubeImapSyncClient.php           # IMAP client interface + rcube_imap_generic adapter
-│   ├── RoundcubeImapSyncEngine.php           # core sync logic (folder walk, UID dedup, append)
-│   ├── RoundcubeImapSyncException.php        # plugin-specific RuntimeException subclass
+│   ├── RoundcubeImapSyncEngine.php           # core sync logic (folder walk, UID dedup, append) + preflight()
+│   ├── RoundcubeImapSyncException.php       # plugin-specific RuntimeException subclass + QuotaExceeded subclass
 │   ├── RoundcubeImapSyncJob.php              # parameter object: source creds + options
+│   ├── RoundcubeImapSyncPreflightResult.php  # preflight payload: connection/folders/quota checks
 │   └── RoundcubeImapSyncResult.php           # tallies (folders synced, messages copied, skipped, errors)
 ├── localization/
 │   ├── en_US.inc                             # source of truth
@@ -164,8 +165,8 @@ global rules win.
   expects the plugin's main class to be globally named after the plugin directory
   (here: `class imapsync extends rcube_plugin`). Helper classes under `lib/` follow the same
   convention: globally named with a `RoundcubeImapSync` prefix
-  (`RoundcubeImapSyncEngine`, `RoundcubeImapSyncJob`, `RoundcubeImapSyncResult`), autoloaded
-  via the `composer.json` `classmap`.
+  (`RoundcubeImapSyncEngine`, `RoundcubeImapSyncJob`, `RoundcubeImapSyncResult`,
+  `RoundcubeImapSyncPreflightResult`), autoloaded via the `composer.json` `classmap`.
 - **No comments unless intent is non-obvious.** Do not restate what code does. Comment a
   workaround, a hidden invariant, or a non-obvious choice. PHPDoc only on public class API
   where types are not expressible inline (e.g. arrays with known shapes).
@@ -418,8 +419,11 @@ skips itself cleanly when Docker is not available.
   correct but slow.
 - No support for the IMAP `CONDSTORE` / `QRESYNC` extensions yet. They would make incremental
   sync cheap.
-- No quota-aware throttling. If the destination account is near quota, the sync will produce
-  a flood of `OVERQUOTA` errors instead of stopping gracefully.
+- Preflight estimates source size against destination free quota with a 15% safety margin, and
+  the engine treats a runtime `[OVERQUOTA]` response as fatal (stops immediately, sets
+  `result.quotaExceeded`). Edge cases that remain: the destination fills up from external
+  activity between preflight and run, or the server has no `QUOTA` extension (preflight then
+  reports "unknown" and lets the user start anyway).
 - Skin support: ships an `elastic` skin only. The legacy `classic` skin is not targeted.
 - A separate integration suite exists for the real `RoundcubeImapSyncGenericClient`; it runs
   against Dovecot containers via `composer test:integration`.

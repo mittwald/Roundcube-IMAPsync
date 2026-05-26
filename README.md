@@ -106,10 +106,18 @@ Reload Roundcube. A new **Email migration** entry appears under Settings.
 1. Open Roundcube, log in to the account that should **receive** the mail.
 2. Go to **Settings → Email migration**.
 3. Enter the **source** server's host, port, encryption, username and password.
-4. Click **Start migration**. The browser shows a "loading" indicator until the run finishes.
-5. When the run completes, the page shows a summary (folders migrated, messages copied,
+4. Click **Verify migration**. A checklist appears showing whether the source is reachable,
+   how many folders were found, and whether the destination has enough free space (estimated
+   from source size with a 15% safety margin). The **Start migration** button is disabled
+   until this check passes (or quota information is unavailable, in which case it unlocks
+   anyway with a warning).
+5. Click **Start migration**. The browser shows a "loading" indicator until the run finishes.
+6. When the run completes, the page shows a summary (folders migrated, messages copied,
    messages skipped, errors).
-6. Open your inbox — the migrated folders and messages are there.
+7. Open your inbox — the migrated folders and messages are there.
+
+If the destination mailbox is full mid-run, the sync stops immediately with a clear
+"target mailbox is full" message instead of producing one error per source message.
 
 ### Re-running against the same source
 
@@ -226,8 +234,11 @@ context picks it up.
   copied messages are skipped fast, but the folder walk still happens.
 - **No `CONDSTORE` / `QRESYNC`.** Incremental syncs are correct but not as cheap as they could
   be on servers that support these IMAP extensions.
-- **No quota-aware throttling.** If the destination account is close to quota, you will see a
-  burst of `OVERQUOTA` errors instead of a clean stop.
+- **Quota handling is best-effort.** The "Verify migration" check estimates source size against
+  destination free quota with a 15% safety margin, and a runtime `[OVERQUOTA]` response stops
+  the sync immediately with a clear message. The verify check cannot help if the destination
+  server has no `QUOTA` extension (it then reports "unknown") or if the destination fills up
+  from external activity between verify and start.
 - **Elastic skin only.** The legacy `classic` skin is not targeted.
 
 ---

@@ -92,6 +92,26 @@ final class ImapSyncEngineTest extends TestCase
         self::assertCount(1, $destination->folders['Archive']);
     }
 
+    public function testQuotaExceededStopsSyncAsFatal(): void
+    {
+        $source = new FakeImapClient();
+        $source->seed('INBOX', [
+            1 => $this->message('<one@example.test>', 'One'),
+            2 => $this->message('<two@example.test>', 'Two'),
+        ]);
+        $source->seed('Archive', [1 => $this->message('<archive@example.test>', 'Archive')]);
+        $destination = new FakeImapClient();
+        $destination->appendQuotaFailures['INBOX'] = '[OVERQUOTA] Quota exceeded';
+
+        $result = $this->runEngine($source, $destination);
+
+        self::assertTrue($result->quotaExceeded);
+        self::assertNotNull($result->fatalError);
+        self::assertStringContainsString('OVERQUOTA', $result->fatalError);
+        self::assertSame(0, $result->messagesCopied);
+        self::assertArrayNotHasKey('Archive', $destination->folders);
+    }
+
     public function testCreateFolderErrorSkipsFolderAndContinues(): void
     {
         $source = new FakeImapClient();
@@ -142,6 +162,74 @@ final class ImapSyncEngineTest extends TestCase
             ['INBOX', 0, 2],
             ['INBOX', 2, 2],
         ], $progress);
+    }
+
+    public function testPreflightAllGreenWhenQuotaFits(): void
+    {
+        $source = new FakeImapClient();
+        $source->seed('INBOX', [1 => $this->message('<one@example.test>', 'One')]);
+        $source->folderSizes = ['INBOX' => 1024];
+        $destination = new FakeImapClient();
+        $destination->quotaResult = ['used' => 0, 'total' => 1024 * 1024];
+
+        $job = new RoundcubeImapSyncJob('imap.example.test', 993, 'ssl', 'user', 'secret');
+        $engine = new RoundcubeImapSyncEngine($source, $destination);
+        $result = $engine->preflight($job);
+
+        self::assertTrue($result->connectionOk);
+        self::assertTrue($result->foldersOk);
+        self::assertSame(1, $result->folderCount);
+        self::assertSame(1024, $result->sourceBytes);
+        self::assertTrue($result->quotaChecked);
+        self::assertTrue($result->quotaFits);
+        self::assertTrue($result->readyToStart);
+    }
+
+    public function testPreflightFailsWhenSourceTooLargeForDestination(): void
+    {
+        $source = new FakeImapClient();
+        $source->seed('INBOX', [1 => $this->message('<big@example.test>', 'Big')]);
+        $source->folderSizes = ['INBOX' => 900_000];
+        $destination = new FakeImapClient();
+        $destination->quotaResult = ['used' => 0, 'total' => 1_000_000];
+
+        $job = new RoundcubeImapSyncJob('imap.example.test', 993, 'ssl', 'user', 'secret');
+        $engine = new RoundcubeImapSyncEngine($source, $destination);
+        $result = $engine->preflight($job);
+
+        self::assertTrue($result->quotaChecked);
+        self::assertFalse($result->quotaFits);
+        self::assertFalse($result->readyToStart);
+    }
+
+    public function testPreflightReadyWhenQuotaUnknown(): void
+    {
+        $source = new FakeImapClient();
+        $source->seed('INBOX', [1 => $this->message('<one@example.test>', 'One')]);
+        $destination = new FakeImapClient();
+        $destination->quotaResult = null;
+
+        $job = new RoundcubeImapSyncJob('imap.example.test', 993, 'ssl', 'user', 'secret');
+        $engine = new RoundcubeImapSyncEngine($source, $destination);
+        $result = $engine->preflight($job);
+
+        self::assertFalse($result->quotaChecked);
+        self::assertTrue($result->readyToStart);
+    }
+
+    public function testPreflightFailsOnSourceConnectError(): void
+    {
+        $source = new FakeImapClient();
+        $source->connectShouldFail = true;
+        $destination = new FakeImapClient();
+
+        $job = new RoundcubeImapSyncJob('imap.example.test', 993, 'ssl', 'user', 'secret');
+        $engine = new RoundcubeImapSyncEngine($source, $destination);
+        $result = $engine->preflight($job);
+
+        self::assertFalse($result->connectionOk);
+        self::assertNotNull($result->connectionError);
+        self::assertFalse($result->readyToStart);
     }
 
     private function runEngine(FakeImapClient $source, FakeImapClient $destination, array $options = []): RoundcubeImapSyncResult

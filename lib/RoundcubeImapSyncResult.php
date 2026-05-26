@@ -7,6 +7,7 @@ class RoundcubeImapSyncResult
     public int $messagesSkipped = 0;
     public array $errors = [];
     public ?string $fatalError = null;
+    public bool $quotaExceeded = false;
     public float $startedAt;
     public float $finishedAt = 0.0;
 
@@ -23,6 +24,7 @@ class RoundcubeImapSyncResult
             'messagesSkipped' => $this->messagesSkipped,
             'errors' => $this->errors,
             'fatalError' => $this->fatalError,
+            'quotaExceeded' => $this->quotaExceeded,
             'startedAt' => $this->startedAt,
             'finishedAt' => $this->finishedAt,
         ];

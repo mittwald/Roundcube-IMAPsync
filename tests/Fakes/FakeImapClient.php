@@ -4,8 +4,13 @@ class FakeImapClient implements RoundcubeImapSyncClient
 {
     public array $folders = [];
     public bool $connectShouldFail = false;
+    public array $appendQuotaFailures = [];
     public array $appendFailures = [];
     public array $createFolderFailures = [];
+    public array $folderSizes = [];
+    public ?array $quotaResult = null;
+    public bool $statusSizeSupported = true;
+    public bool $getFolderSizeShouldFail = false;
     private string $delimiter;
 
     public function __construct(string $delimiter = '/')
@@ -63,6 +68,38 @@ class FakeImapClient implements RoundcubeImapSyncClient
         return count($this->folders[$folder]);
     }
 
+    public function getFolderSize(string $folder): int
+    {
+        if ($this->getFolderSizeShouldFail) {
+            throw new RoundcubeImapSyncException("Could not fetch size for {$folder}.");
+        }
+
+        if (isset($this->folderSizes[$folder])) {
+            return $this->folderSizes[$folder];
+        }
+
+        if (!isset($this->folders[$folder])) {
+            return 0;
+        }
+
+        $total = 0;
+        foreach ($this->folders[$folder] as $message) {
+            $total += strlen($message['raw']);
+        }
+
+        return $total;
+    }
+
+    public function getQuota(string $folder): ?array
+    {
+        return $this->quotaResult;
+    }
+
+    public function supportsStatusSize(): bool
+    {
+        return $this->statusSizeSupported;
+    }
+
     public function fetchMessageIdentities(string $folder): array
     {
         if (!isset($this->folders[$folder])) {
@@ -92,6 +129,10 @@ class FakeImapClient implements RoundcubeImapSyncClient
 
     public function appendMessage(string $folder, string $rawMessage, array $flags, ?string $internalDate): bool
     {
+        if (isset($this->appendQuotaFailures[$folder])) {
+            throw new RoundcubeImapSyncQuotaExceededException($this->appendQuotaFailures[$folder]);
+        }
+
         if (isset($this->appendFailures[$folder])) {
             throw new RoundcubeImapSyncException($this->appendFailures[$folder]);
         }
