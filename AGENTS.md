@@ -83,7 +83,8 @@ future worker mode — must use an out-of-session store (file, DB, Roundcube cac
 │   │   └── FakeImapClient.php                # in-memory RoundcubeImapSyncClient for unit tests
 │   └── Integration/
 │       ├── bootstrap.php
-│       ├── DovecotContainer.php              # testcontainers-php wrapper for Dovecot
+│       ├── DovecotContainer.php              # testcontainers-php wrapper for Dovecot (optional quota plugin)
+│       ├── PreflightAndQuotaIntegrationTest.php  # real-Dovecot OVERQUOTA + preflight quota coverage
 │       └── SyncEngineIntegrationTest.php     # real-IMAP sync against two Dovecot containers
 ├── phpunit.xml.dist                          # unit suite (excludes tests/Integration)
 ├── phpunit.integration.xml.dist              # integration suite (Docker required)

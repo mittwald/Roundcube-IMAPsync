@@ -12,9 +12,17 @@ class DovecotContainer
 
     private ?StartedGenericContainer $container = null;
     private ?string $configDirectory = null;
+    private ?int $quotaKilobytes = null;
 
     public function __construct(private readonly string $imageTag = 'dovecot/dovecot:latest-root')
     {
+    }
+
+    public function withQuotaKilobytes(int $kilobytes): self
+    {
+        $this->quotaKilobytes = $kilobytes;
+
+        return $this;
     }
 
     public function start(): self
@@ -136,6 +144,41 @@ DOVECOT;
 
         if (file_put_contents($configDirectory . '/auth.conf', $config) === false) {
             throw new RuntimeException('Could not write Dovecot auth config.');
+        }
+
+        if ($this->quotaKilobytes !== null) {
+            $quotaConfig = strtr(
+                <<<'DOVECOT'
+mail_plugins {
+  quota = yes
+}
+
+protocol imap {
+  mail_plugins {
+    quota = yes
+    imap_quota = yes
+  }
+}
+
+namespace inbox {
+  inbox = yes
+}
+
+quota_storage_size = %KB%K
+quota_exceeded_message = "Mailbox [OVERQUOTA] over quota"
+
+quota "User quota" {
+}
+
+quota_status_success = OK
+quota_status_overquota = "[OVERQUOTA] Mailbox over quota"
+DOVECOT,
+                ['%KB%' => (string) $this->quotaKilobytes],
+            );
+
+            if (file_put_contents($configDirectory . '/quota.conf', $quotaConfig) === false) {
+                throw new RuntimeException('Could not write Dovecot quota config.');
+            }
         }
 
         return $configDirectory;
