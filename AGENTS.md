@@ -57,6 +57,8 @@ future worker mode — must use an out-of-session store (file, DB, Roundcube cac
 ├── LICENSE                                   # MIT
 ├── README.md                                 # user-facing documentation
 ├── composer.json                             # plugin manifest (Roundcube plugin-installer type)
+├── psalm.xml                                 # Psalm static-analysis configuration
+├── psalm-baseline.xml                        # current Psalm baseline for brownfield issues
 ├── imapsync.php                              # plugin entry class (extends rcube_plugin)
 ├── imapsync.js                               # client-side: form handling, result rendering
 ├── config.inc.php.dist                       # default plugin config, copied by user to config.inc.php
@@ -91,7 +93,7 @@ future worker mode — must use an out-of-session store (file, DB, Roundcube cac
 ├── .gitattributes                            # export-ignore tests/, dist/, .github/, etc.
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                            # unit + integration tests, lint, docs-freshness
+│       ├── ci.yml                            # unit + integration tests, Psalm, lint, docs-freshness
 │       └── release.yml                       # tag → tarball + zip + checksums on GitHub Releases
 └── dist/                                     # gitignored — local Roundcube source for reference (see below)
 ```
@@ -203,6 +205,8 @@ global rules win.
   call.
 - Run with `composer test:unit` (unit only) or `composer test:integration` (Docker, real
   Dovecot) from the repo root. CI runs both.
+- Run `composer analyse` for Psalm static analysis over `imapsync.php`, `lib/`, and `tests/`;
+  it uses the Roundcube source in `dist/` for type resolution.
 
 ### Security expectations
 
@@ -332,9 +336,9 @@ pre-commit check.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the deterministic subset of these checks
 (config-key consistency, locale-key consistency) on every push and PR as the `docs-freshness`
-job, alongside `unit-tests`, `integration-tests`, and PHP linting. A failing freshness check
-blocks the PR. CI is a safety net, not a substitute — run the checks locally before pushing so
-you don't burn a round trip on something a 30-second grep would have caught.
+job, alongside `unit-tests`, `static-analysis`, `integration-tests`, and PHP linting. A failing
+freshness check blocks the PR. CI is a safety net, not a substitute — run the checks locally
+before pushing so you don't burn a round trip on something a 30-second grep would have caught.
 
 ---
 
@@ -397,6 +401,7 @@ Test suite:
 
 ```bash
 composer install
+composer analyse                 # Psalm static analysis (uses dist/ for Roundcube symbols)
 composer test:unit               # unit tests (fast, no network, no Docker)
 composer test:integration        # integration tests (requires a running Docker daemon)
 ```

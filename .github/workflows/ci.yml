@@ -44,6 +44,29 @@ jobs:
       - name: Run unit tests
         run: composer test:unit -- --colors=never
 
+  static-analysis:
+    name: Static analysis (Psalm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+          extensions: imap, intl, mbstring
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Fetch Roundcube source for type resolution
+        run: composer dist:fetch
+
+      - name: Run Psalm
+        run: composer analyse
+
   integration-tests:
     name: Integration tests (Dovecot via Docker)
     runs-on: ubuntu-latest

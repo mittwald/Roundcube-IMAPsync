@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0">
+  <file src="imapsync.php">
+    <NullArgument>
+      <code><![CDATA[null]]></code>
+    </NullArgument>
+  </file>
+  <file src="lib/RoundcubeImapSyncClient.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$result]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[bool]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="tests/Fakes/FakeImapClient.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[max(array_keys($this->folders[$folder])) + 1]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[int]]></code>
+    </InvalidReturnType>
+  </file>
+</files>

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<psalm
+    errorLevel="6"
+    errorBaseline="psalm-baseline.xml"
+    resolveFromConfigFile="true"
+    findUnusedBaselineEntry="true"
+    findUnusedCode="false"
+    cacheDirectory="/tmp/psalm-cache"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+>
+    <projectFiles>
+        <file name="imapsync.php"/>
+        <directory name="lib"/>
+        <directory name="tests"/>
+    </projectFiles>
+
+    <extraFiles>
+        <directory name="dist/roundcubemail-1.7.0/program/lib/Roundcube"/>
+    </extraFiles>
+
+    <!-- If errors in scope are unavoidable (Roundcube interop quirks),
+         add <issueHandlers> here. Prefer baselining over suppressing. -->
+</psalm>
