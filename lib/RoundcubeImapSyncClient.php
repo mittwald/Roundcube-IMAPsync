@@ -14,6 +14,12 @@ interface RoundcubeImapSyncClient
 
     public function selectFolder(string $folder): int;
 
+    public function getFolderSize(string $folder): int;
+
+    public function getQuota(string $folder): ?array;
+
+    public function supportsStatusSize(): bool;
+
     public function fetchMessageIdentities(string $folder): array;
 
     public function fetchMessageRaw(string $folder, int $uid): ?array;
@@ -23,6 +29,8 @@ interface RoundcubeImapSyncClient
 
 class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
 {
+    private ?bool $statusSizeSupported = null;
+
     public function __construct(private readonly rcube_imap_generic $imap)
     {
     }
@@ -71,6 +79,55 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         }
 
         return (int) ($status['MESSAGES'] ?? 0);
+    }
+
+    public function getFolderSize(string $folder): int
+    {
+        if ($this->supportsStatusSize()) {
+            $status = $this->imap->status($folder, ['SIZE']);
+            if (is_array($status) && array_key_exists('SIZE', $status)) {
+                return (int) $status['SIZE'];
+            }
+        }
+
+        $totalMessages = $this->selectFolder($folder);
+        if ($totalMessages === 0) {
+            return 0;
+        }
+
+        $messages = $this->imap->fetch($folder, '1:*', false, ['UID', 'RFC822.SIZE']);
+        if ($messages === false) {
+            throw new RoundcubeImapSyncException($this->getErrorMessage("Could not fetch sizes for {$folder}."));
+        }
+
+        $totalSize = 0;
+        foreach ($messages as $message) {
+            $totalSize += (int) ($message->size ?? 0);
+        }
+
+        return $totalSize;
+    }
+
+    public function getQuota(string $folder): ?array
+    {
+        $quota = $this->imap->getQuota($folder);
+        if ($quota === false) {
+            return null;
+        }
+
+        return [
+            'used' => (int) $quota['used'] * 1024,
+            'total' => (int) $quota['total'] * 1024,
+        ];
+    }
+
+    public function supportsStatusSize(): bool
+    {
+        if ($this->statusSizeSupported === null) {
+            $this->statusSizeSupported = (bool) $this->imap->getCapability('STATUS=SIZE');
+        }
+
+        return $this->statusSizeSupported;
     }
 
     public function fetchMessageIdentities(string $folder): array
@@ -127,7 +184,12 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         $message = $rawMessage;
         $result = $this->imap->append($folder, $message, $flags, $internalDate, false);
         if (!$result && $this->imap->error) {
-            throw new RoundcubeImapSyncException($this->getErrorMessage("Could not append message to {$folder}."));
+            $errorMessage = $this->getErrorMessage("Could not append message to {$folder}.");
+            if (stripos($errorMessage, '[OVERQUOTA]') !== false) {
+                throw new RoundcubeImapSyncQuotaExceededException($errorMessage);
+            }
+
+            throw new RoundcubeImapSyncException($errorMessage);
         }
 
         return $result;

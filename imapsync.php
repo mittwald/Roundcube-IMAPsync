@@ -3,11 +3,14 @@
 require_once __DIR__ . '/lib/RoundcubeImapSyncException.php';
 require_once __DIR__ . '/lib/RoundcubeImapSyncClient.php';
 require_once __DIR__ . '/lib/RoundcubeImapSyncJob.php';
+require_once __DIR__ . '/lib/RoundcubeImapSyncPreflightResult.php';
 require_once __DIR__ . '/lib/RoundcubeImapSyncResult.php';
 require_once __DIR__ . '/lib/RoundcubeImapSyncEngine.php';
 
 class imapsync extends rcube_plugin
 {
+    private const SUPPORT_ISSUES_URL = 'https://github.com/mittwald/Roundcube-IMAPsync/issues';
+
     public $task = 'settings';
 
     private rcmail $rc;
@@ -20,6 +23,7 @@ class imapsync extends rcube_plugin
         $this->add_texts('localization/', true);
         $this->add_hook('settings_actions', [$this, 'settings_actions']);
         $this->register_action('plugin.imapsync', [$this, 'action_form']);
+        $this->register_action('plugin.imapsync.preflight', [$this, 'action_preflight']);
         $this->register_action('plugin.imapsync.start', [$this, 'action_start']);
         $this->register_action('plugin.imapsync.status', [$this, 'action_status']);
     }
@@ -53,6 +57,17 @@ class imapsync extends rcube_plugin
             'imapsync.donesuccess',
             'imapsync.donewitherrors',
             'imapsync.errorvalidation',
+            'imapsync.errorquota',
+            'imapsync.preflightcheckconnection',
+            'imapsync.preflightcheckfolders',
+            'imapsync.preflightcheckquota',
+            'imapsync.preflightfoldersdetail',
+            'imapsync.preflightquotaokdetail',
+            'imapsync.preflightquotafaildetail',
+            'imapsync.preflightquotaunknowndetail',
+            'imapsync.preflighttimeoutwarn',
+            'imapsync.preflightreadyhint',
+            'imapsync.preflightnotreadyhint',
         );
         $this->rc->output->set_env('imapsync_allow_insecure', $this->allowInsecure());
         $this->rc->output->set_pagetitle($this->gettext('pagetitle'));
@@ -111,10 +126,16 @@ class imapsync extends rcube_plugin
         $this->addFormRow($table, 'imapsync-user', 'sourceuser', $user->show());
         $this->addFormRow($table, 'imapsync-password', 'sourcepassword', $password->show());
 
+        $verifyButton = html::tag('button', [
+            'type' => 'button',
+            'id' => 'imapsync-verify',
+            'class' => 'button mainaction',
+        ], rcube::Q($this->gettext('preflightbutton')));
         $button = html::tag('button', [
             'type' => 'submit',
             'id' => 'imapsync-submit',
-            'class' => 'button mainaction submit',
+            'class' => 'button mainaction submit disabled',
+            'disabled' => 'disabled',
         ], rcube::Q($this->gettext('startsync')));
         $cancelButton = html::tag('button', [
             'type' => 'button',
@@ -127,16 +148,26 @@ class imapsync extends rcube_plugin
             'name' => 'imapsync-form',
             'method' => 'post',
             'action' => './?_task=settings&_action=plugin.imapsync.start',
-        ], $table->show() . html::p(['class' => 'formbuttons footerleft'], $button . ' ' . $cancelButton));
+        ], $table->show() . html::p(['class' => 'formbuttons footerleft'], $verifyButton . ' ' . $button . ' ' . $cancelButton));
 
         $notice = html::div(['class' => 'boxinformation imapsync-notice'],
             html::tag('strong', ['class' => 'imapsync-notice-title'], rcube::Q($this->gettext('noticetitle')))
             . html::tag('ul', ['class' => 'imapsync-notice-list'],
                 html::tag('li', [], rcube::Q($this->gettext('noticepreserves')))
                 . html::tag('li', [], rcube::Q($this->gettext('noticesynchronous')))
-                . html::tag('li', [], rcube::Q($this->gettext('noticeretry')))
+                . html::tag('li', [], rcube::Q($this->retryNoticeText()))
                 . html::tag('li', [], rcube::Q($this->gettext('noticeduration')))
             )
+        );
+
+        $supportLink = html::a([
+            'href' => self::SUPPORT_ISSUES_URL,
+            'target' => '_blank',
+            'rel' => 'noopener noreferrer',
+        ], rcube::Q($this->gettext('supportnoticelink')));
+        $supportNotice = html::p(
+            ['class' => 'imapsync-support'],
+            strtr(rcube::Q($this->gettext('supportnotice')), ['%link%' => $supportLink])
         );
 
         return html::div(['id' => 'prefs-title', 'class' => 'boxtitle'], rcube::Q($this->gettext('pagetitle')))
@@ -145,6 +176,7 @@ class imapsync extends rcube_plugin
                     html::p(['class' => 'imapsync-intro'], rcube::Q($this->gettext('intro')))
                     . $notice
                     . $form
+                    . $supportNotice
                 )
             );
     }
@@ -190,6 +222,43 @@ class imapsync extends rcube_plugin
             'progress' => [],
             'result' => $result->toArray(),
         ]);
+        $this->rc->output->send();
+    }
+
+    public function action_preflight(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        try {
+            $job = $this->createJobFromRequest();
+            $source = new RoundcubeImapSyncGenericClient(new rcube_imap_generic());
+            $destination = $this->createDestinationClient();
+            $engine = new RoundcubeImapSyncEngine($source, $destination);
+
+            $result = $engine->preflight($job);
+        } catch (InvalidArgumentException $validationException) {
+            $message = $validationException->getMessage() !== ''
+                ? $validationException->getMessage()
+                : $this->gettext('errorvalidation');
+            $this->rc->output->command('plugin.imapsync_error', $message);
+            $this->rc->output->send();
+
+            return;
+        } catch (RoundcubeImapSyncException $syncException) {
+            $result = new RoundcubeImapSyncPreflightResult();
+            $result->connectionError = $syncException->getMessage();
+        }
+
+        $payload = $result->toArray();
+        $payload['maxExecutionTime'] = $this->maxExecutionTime();
+        $payload['timeoutRisk'] = $this->isTimeoutRisky(
+            $payload['sourceBytes'] ?? null,
+            $payload['maxExecutionTime']
+        );
+
+        $this->rc->output->command('plugin.imapsync_preflight', $payload);
         $this->rc->output->send();
     }
 
@@ -287,5 +356,38 @@ class imapsync extends rcube_plugin
     private function allowInsecure(): bool
     {
         return (bool) $this->rc->config->get('imapsync_allow_insecure', false);
+    }
+
+    private function retryNoticeText(): string
+    {
+        $maxExecutionTime = $this->maxExecutionTime();
+        if ($maxExecutionTime <= 0) {
+            return $this->gettext('noticeretry');
+        }
+
+        return strtr($this->gettext('noticeretrylimit'), ['%seconds%' => (string) $maxExecutionTime]);
+    }
+
+    private function maxExecutionTime(): int
+    {
+        $value = (int) ini_get('max_execution_time');
+
+        return max(0, $value);
+    }
+
+    private function isTimeoutRisky(?int $sourceBytes, int $maxExecutionTime): bool
+    {
+        if ($sourceBytes === null || $sourceBytes <= 0) {
+            return false;
+        }
+
+        if ($maxExecutionTime <= 0) {
+            return false;
+        }
+
+        $bytesPerSecond = $sourceBytes / $maxExecutionTime;
+        $threshold = (100 * 1024 * 1024) / 60;
+
+        return $bytesPerSecond > $threshold;
     }
 }
