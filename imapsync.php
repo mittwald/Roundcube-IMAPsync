@@ -15,6 +15,7 @@ class imapsync extends rcube_plugin
 
     private rcmail $rc;
 
+    #[\Override]
     public function init(): void
     {
         $this->rc = rcmail::get_instance();
@@ -278,7 +279,7 @@ class imapsync extends rcube_plugin
     private function addFormRow(html_table $table, string $fieldId, string $labelKey, string $field): void
     {
         $table->add('title', html::label($fieldId, rcube::Q($this->gettext($labelKey))));
-        $table->add(null, $field);
+        $table->add('', $field);
     }
 
     private function createJobFromRequest(): RoundcubeImapSyncJob

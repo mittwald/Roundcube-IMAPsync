@@ -15,6 +15,7 @@ final class PreflightAndQuotaIntegrationTest extends TestCase
     private static ?DovecotContainer $sourceContainer = null;
     private static ?DovecotContainer $destinationContainer = null;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         if (getenv('DOVECOT_INTEGRATION_SKIP') === '1') {
@@ -38,6 +39,7 @@ final class PreflightAndQuotaIntegrationTest extends TestCase
         self::seedSourceContainer();
     }
 
+    #[\Override]
     public static function tearDownAfterClass(): void
     {
         try {

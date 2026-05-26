@@ -17,6 +17,7 @@ final class SyncEngineIntegrationTest extends TestCase
     private static ?DovecotContainer $destinationContainer = null;
     private static string $sourceSubfolder = '';
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         if (getenv('DOVECOT_INTEGRATION_SKIP') === '1') {
@@ -38,6 +39,7 @@ final class SyncEngineIntegrationTest extends TestCase
         self::seedSourceContainer();
     }
 
+    #[\Override]
     public static function tearDownAfterClass(): void
     {
         try {

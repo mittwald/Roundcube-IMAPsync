@@ -35,6 +35,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
     {
     }
 
+    #[\Override]
     public function connect(string $host, int $port, string $user, string $password, array $options): void
     {
         $options['port'] = $port;
@@ -44,11 +45,13 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         }
     }
 
+    #[\Override]
     public function close(): void
     {
         $this->imap->closeConnection();
     }
 
+    #[\Override]
     public function listFolders(): array
     {
         $folders = $this->imap->listMailboxes('', '*');
@@ -59,6 +62,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return array_values(array_map('strval', $folders));
     }
 
+    #[\Override]
     public function getHierarchyDelimiter(): string
     {
         $delimiter = $this->imap->getHierarchyDelimiter();
@@ -66,11 +70,13 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return is_string($delimiter) && $delimiter !== '' ? $delimiter : '/';
     }
 
+    #[\Override]
     public function createFolder(string $folder): bool
     {
         return $this->imap->createFolder($folder);
     }
 
+    #[\Override]
     public function selectFolder(string $folder): int
     {
         $status = $this->imap->status($folder, ['MESSAGES']);
@@ -81,6 +87,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return (int) ($status['MESSAGES'] ?? 0);
     }
 
+    #[\Override]
     public function getFolderSize(string $folder): int
     {
         if ($this->supportsStatusSize()) {
@@ -108,6 +115,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return $totalSize;
     }
 
+    #[\Override]
     public function getQuota(string $folder): ?array
     {
         $quota = $this->imap->getQuota($folder);
@@ -121,6 +129,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         ];
     }
 
+    #[\Override]
     public function supportsStatusSize(): bool
     {
         if ($this->statusSizeSupported === null) {
@@ -130,6 +139,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return $this->statusSizeSupported;
     }
 
+    #[\Override]
     public function fetchMessageIdentities(string $folder): array
     {
         $totalMessages = $this->selectFolder($folder);
@@ -160,6 +170,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         return $identities;
     }
 
+    #[\Override]
     public function fetchMessageRaw(string $folder, int $uid): ?array
     {
         $messages = $this->imap->fetch($folder, (string) $uid, true, ['UID', 'RFC822', 'FLAGS', 'INTERNALDATE']);
@@ -179,6 +190,7 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
         ];
     }
 
+    #[\Override]
     public function appendMessage(string $folder, string $rawMessage, array $flags, ?string $internalDate): bool
     {
         $message = $rawMessage;
@@ -193,7 +205,11 @@ class RoundcubeImapSyncGenericClient implements RoundcubeImapSyncClient
             throw new RoundcubeImapSyncException($errorMessage);
         }
 
-        return $result;
+        // rcube_imap_generic::append returns mixed: false on failure, true on
+        // plain success, or the appended UID (string) when the server supports
+        // UIDPLUS. Our interface only contracts a bool, so collapse the
+        // success cases to true.
+        return (bool) $result;
     }
 
     /**

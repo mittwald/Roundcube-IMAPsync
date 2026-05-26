@@ -187,6 +187,7 @@ composer install
 composer test:unit          # in-memory unit tests, no network, no Docker
 composer test:integration   # Dovecot integration suite, requires a running Docker daemon
 composer test               # alias for test:unit
+composer analyse            # Psalm static analysis over plugin code and tests
 ```
 
 The unit tests do not touch the network — the sync engine takes an injected IMAP-client
