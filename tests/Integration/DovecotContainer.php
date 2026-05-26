@@ -12,9 +12,25 @@ class DovecotContainer
 
     private ?StartedGenericContainer $container = null;
     private ?string $configDirectory = null;
+    private ?int $quotaKilobytes = null;
+    private ?string $quotaExceededMessage = null;
 
     public function __construct(private readonly string $imageTag = 'dovecot/dovecot:latest-root')
     {
+    }
+
+    public function withQuotaKilobytes(int $kilobytes): self
+    {
+        $this->quotaKilobytes = $kilobytes;
+
+        return $this;
+    }
+
+    public function withQuotaExceededMessage(string $message): self
+    {
+        $this->quotaExceededMessage = $message;
+
+        return $this;
     }
 
     public function start(): self
@@ -136,6 +152,52 @@ DOVECOT;
 
         if (file_put_contents($configDirectory . '/auth.conf', $config) === false) {
             throw new RuntimeException('Could not write Dovecot auth config.');
+        }
+
+        if ($this->quotaKilobytes !== null) {
+            // Enable the quota plugin and set a storage limit, then let
+            // Dovecot's defaults handle the IMAP response. Since Dovecot
+            // 2.2.30, an APPEND that exceeds quota carries an [OVERQUOTA]
+            // response code (RFC 9208) automatically — we want to test
+            // against that real-world wording, not against a forced one.
+            $quotaConfig = strtr(
+                <<<'DOVECOT'
+mail_plugins {
+  quota = yes
+}
+
+protocol imap {
+  mail_plugins {
+    quota = yes
+    imap_quota = yes
+  }
+}
+
+namespace inbox {
+  inbox = yes
+}
+
+quota_storage_size = %KB%K
+
+quota "User quota" {
+}
+DOVECOT,
+                ['%KB%' => (string) $this->quotaKilobytes],
+            );
+
+            if ($this->quotaExceededMessage !== null) {
+                // Operators sometimes replace the standard [OVERQUOTA] response
+                // with a custom 5.2.2-style sentence (e.g. the Mittwald default).
+                // This option lets a test exercise that variant against real
+                // Dovecot. Escape embedded double-quotes so the value reaches
+                // Dovecot intact.
+                $escaped = str_replace('"', '\\"', $this->quotaExceededMessage);
+                $quotaConfig .= "\nquota_exceeded_message = \"{$escaped}\"\n";
+            }
+
+            if (file_put_contents($configDirectory . '/quota.conf', $quotaConfig) === false) {
+                throw new RuntimeException('Could not write Dovecot quota config.');
+            }
         }
 
         return $configDirectory;
