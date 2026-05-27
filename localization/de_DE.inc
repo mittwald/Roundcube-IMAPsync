@@ -7,13 +7,15 @@
 
 $labels = [];
 $labels['pagetitle'] = 'E-Mail Umzug';
-$labels['intro'] = 'Kopiert E-Mails aus einem anderen IMAP-Konto in dieses Postfach.';
-$labels['noticetitle'] = 'Bitte beachten';
-$labels['noticepreserves'] = 'Deine vorhandenen Mails bleiben unangetastet — der Umzug fügt nur die neuen Nachrichten aus dem Quellkonto zusätzlich hinzu. Es wird nichts überschrieben oder gelöscht.';
-$labels['noticesynchronous'] = 'Lass diesen Tab geöffnet, bis der Vorgang abgeschlossen ist. Schließt du ihn vorher, läuft der Umzug möglicherweise nicht vollständig durch — und du siehst am Ende auch nicht, was tatsächlich kopiert wurde.';
-$labels['noticeretry'] = 'Wenn etwas dazwischenkommt — Tab versehentlich geschlossen, kurz kein Internet, Timeout — starte nicht sofort neu. Der Vorgang läuft im Hintergrund oft noch ein paar Minuten weiter. Schau ins Postfach: sobald keine neuen Mails mehr eintreffen und die Postfachgröße nicht weiter wächst, ist er abgeschlossen und du kannst beruhigt erneut starten. Bereits kopierte Mails überspringt der nächste Lauf automatisch.';
-$labels['noticeretrylimit'] = 'Der Sync läuft bis zu %seconds% Sekunden. Wenn dein Browser vorher aufgibt (Tab geschlossen, kurz kein Internet, JavaScript-Timeout), läuft der Vorgang serverseitig bis zu dieser Grenze trotzdem weiter, auch wenn du nichts mehr siehst. Starte deshalb nicht sofort neu. Schau ins Postfach: sobald keine neuen Mails mehr eintreffen und die Postfachgröße nicht weiter wächst, ist er abgeschlossen und du kannst beruhigt erneut starten. Bereits kopierte Mails überspringt der nächste Lauf automatisch.';
-$labels['noticeduration'] = 'Bei großen Postfächern kann das ein paar Minuten dauern. Während es läuft, siehst du keinen Fortschritt — die Übersicht erscheint erst am Ende.';
+$labels['intro'] = 'Zieh deine Mails aus einem anderen IMAP-Konto direkt in dieses Postfach.';
+$labels['noticetitle'] = 'Gut zu wissen';
+$labels['noticepreserves'] = 'Deine vorhandenen Mails bleiben unverändert – wir fügen nur neue Nachrichten aus dem Quellkonto hinzu. Es wird nichts überschrieben oder gelöscht.';
+$labels['noticesynchronoustitle'] = 'Tab offen lassen';
+$labels['noticesynchronous'] = 'Lass diese Seite geöffnet, bis der Umzug abgeschlossen ist. Schließt du den Tab vorher, kann der Vorgang abbrechen – und du siehst am Ende möglicherweise nicht alles, was kopiert wurde.';
+$labels['noticeretrytitle'] = 'Bei Verbindungsabbruch';
+$labels['noticeretry'] = 'Kein Problem – der Umzug läuft serverseitig weiter, auch wenn dein Browser zwischendurch geschlossen wird oder die Verbindung kurz abbricht. Starte den Vorgang danach einfach neu; bereits kopierte Mails werden automatisch übersprungen.';
+$labels['noticeretrylimit'] = 'Kein Problem – der Umzug läuft serverseitig bis zu %seconds% Sekunden weiter, auch wenn dein Browser zwischendurch geschlossen wird oder die Verbindung kurz abbricht. Starte den Vorgang danach einfach neu; bereits kopierte Mails werden automatisch übersprungen.';
+$labels['noticeduration'] = 'Bei großen Postfächern kann der Umzug ein paar Minuten dauern. Den Fortschritt siehst du erst am Ende – nicht zwischendurch.';
 $labels['sourcehost'] = 'Quellserver';
 $labels['sourceport'] = 'Quellport';
 $labels['encryption'] = 'Verschlüsselung';
