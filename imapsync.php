@@ -155,8 +155,8 @@ class imapsync extends rcube_plugin
             html::tag('strong', ['class' => 'imapsync-notice-title'], rcube::Q($this->gettext('noticetitle')))
             . html::tag('ul', ['class' => 'imapsync-notice-list'],
                 html::tag('li', [], rcube::Q($this->gettext('noticepreserves')))
-                . html::tag('li', [], rcube::Q($this->gettext('noticesynchronous')))
-                . html::tag('li', [], rcube::Q($this->retryNoticeText()))
+                . $this->noticeItem('noticesynchronoustitle', $this->gettext('noticesynchronous'))
+                . $this->noticeItem('noticeretrytitle', $this->retryNoticeText())
                 . html::tag('li', [], rcube::Q($this->gettext('noticeduration')))
             )
         );
@@ -357,6 +357,13 @@ class imapsync extends rcube_plugin
     private function allowInsecure(): bool
     {
         return (bool) $this->rc->config->get('imapsync_allow_insecure', false);
+    }
+
+    private function noticeItem(string $titleKey, string $body): string
+    {
+        return html::tag('li', [],
+            html::tag('strong', [], rcube::Q($this->gettext($titleKey))) . ': ' . rcube::Q($body)
+        );
     }
 
     private function retryNoticeText(): string
